@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1020">
+  <title>函数之间 · 函数与微积分可视化</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #121a2d;
+      --panel-soft: #172138;
+      --line: #27334b;
+      --text: #f3f6ff;
+      --muted: #8e9ab3;
+      --cyan: #60e5d0;
+      --blue: #8da7ff;
+      --orange: #ffad73;
+      --pink: #ff829a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 12% 0%, rgba(70, 104, 195, .13), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button, select, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { width: min(1200px, calc(100% - 48px)); margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 27px 0;
+      border-bottom: 1px solid rgba(142, 154, 179, .15);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: .02em; }
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 11px;
+      color: #09131d;
+      background: var(--cyan);
+      font-size: 19px;
+    }
+    .header-note { color: var(--muted); font-size: 13px; }
+
+    main { padding: 48px 0 56px; }
+    .intro { margin-bottom: 31px; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 700; letter-spacing: .16em; }
+    h1 { margin: 12px 0 9px; font-size: clamp(30px, 4vw, 43px); letter-spacing: -.045em; }
+    .intro p { max-width: 630px; margin: 0; color: var(--muted); line-height: 1.75; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 18px;
+      align-items: stretch;
+    }
+    .card {
+      border: 1px solid rgba(142, 154, 179, .15);
+      border-radius: 18px;
+      background: rgba(18, 26, 45, .92);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, .15);
+    }
+    .chart-card { min-width: 0; padding: 20px 20px 15px; }
+    .chart-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .chart-title { font-size: 14px; font-weight: 650; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 11px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+    .legend-dot.orange { background: var(--orange); }
+    .legend-dot.blue { background: var(--blue); }
+    canvas { display: block; width: 100%; height: 390px; }
+    .chart-footer { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
+
+    .controls { padding: 21px; }
+    .section-label { margin: 0 0 15px; font-size: 13px; font-weight: 650; }
+    .field { margin-bottom: 22px; }
+    .field label, .field-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: var(--muted); font-size: 12px; }
+    .field output { color: var(--text); font-variant-numeric: tabular-nums; }
+    select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      background: var(--panel-soft);
+      color: var(--text);
+    }
+    .expression-input, .constant-input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      background: var(--panel-soft);
+      color: var(--text);
+    }
+    .expression-input { font-family: "Cambria Math", "Times New Roman", serif; font-size: 15px; }
+    .expression-input:focus, .constant-input:focus { border-color: var(--cyan); }
+    .expression-help { margin: -13px 0 14px; color: #77839b; font-size: 10px; line-height: 1.6; }
+    .parameter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .parameter label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .constant-input { padding: 8px 9px; font-variant-numeric: tabular-nums; }
+    .axis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .axis-input { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-soft); color: var(--text); font: inherit; font-variant-numeric: tabular-nums; }
+    .axis-input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .expression-error { margin: -10px 0 14px; color: var(--pink); font-size: 11px; line-height: 1.5; }
+    .expression-error:empty { display: none; }
+    select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 4px; border-radius: 11px; background: #0d1425; }
+    .mode-button {
+      padding: 9px 4px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      transition: .18s ease;
+    }
+    .mode-button.active { background: #273550; color: var(--text); }
+    input[type="range"] { width: 100%; accent-color: var(--cyan); cursor: pointer; }
+    .range-ends { display: flex; justify-content: space-between; margin-top: 3px; color: #66738e; font-size: 10px; }
+    .formula-box {
+      min-height: 74px;
+      padding: 13px;
+      border: 1px solid rgba(96, 229, 208, .17);
+      border-radius: 11px;
+      background: rgba(96, 229, 208, .055);
+    }
+    .formula-caption { margin-bottom: 7px; color: var(--muted); font-size: 10px; }
+    .formula { color: var(--cyan); font-family: "Cambria Math", "Times New Roman", serif; font-size: 17px; }
+
+    .insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 17px; }
+    .insight { min-height: 100px; padding: 17px 18px; }
+    .insight-label { margin-bottom: 10px; color: var(--muted); font-size: 11px; }
+    .insight-value { overflow-wrap: anywhere; font-family: "Cambria Math", "Times New Roman", serif; font-size: clamp(16px, 2vw, 21px); }
+    .insight-value.cyan { color: var(--cyan); }
+    .insight-value.orange { color: var(--orange); }
+    .insight-value.blue { color: var(--blue); }
+    .hint { margin: 20px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    footer { padding: 18px 0 26px; border-top: 1px solid rgba(142, 154, 179, .12); color: #68748d; font-size: 11px; }
+
+    @media (max-width: 800px) {
+      .workspace { grid-template-columns: 1fr; }
+      .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; }
+      .section-label { grid-column: 1 / -1; }
+      .field { margin-bottom: 15px; }
+      .formula-box { align-self: start; }
+      canvas { height: 350px; }
+    }
+    @media (max-width: 540px) {
+      .shell { width: min(100% - 28px, 1200px); }
+      header { padding: 19px 0; }
+      .header-note { font-size: 11px; }
+      main { padding-top: 34px; }
+      .chart-card { padding: 15px 12px 12px; }
+      .chart-top { align-items: flex-start; flex-direction: column; }
+      canvas { height: 290px; }
+      .controls { padding: 17px 14px; }
+      .insight-grid { grid-template-columns: 1fr; gap: 9px; }
+      .insight { min-height: 0; padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="brand-mark">∿</span><span>函数之间</span></div>
+      <div class="header-note">一张图，读懂微积分</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="eyebrow">VISUAL MATH LAB · 01</div>
+        <h1>让函数与微积分，<br>看得见。</h1>
+        <p>选择常见函数或亲手写下表达式，调整系数，观察曲线、变化率与累积面积如何一起变化。</p>
+      </section>
+
+      <section class="workspace" aria-label="函数可视化工作区">
+        <div class="card chart-card">
+          <div class="chart-top">
+            <div class="chart-title" id="chartTitle">函数图像</div>
+            <div class="legend" id="legend" aria-label="图例"></div>
+          </div>
+          <canvas id="plot" aria-label="函数和微积分图像"></canvas>
+          <div class="chart-footer"><span id="xRange">x ∈ [-4, 4]</span><span>拖动右侧滑块，观察图像变化</span></div>
+        </div>
+
+        <aside class="card controls">
+          <h2 class="section-label">探索参数</h2>
+          <div class="field">
+            <label for="functionSelect">常见函数模板</label>
+            <select id="functionSelect">
+              <option value="linear">一次函数　ax + b</option>
+              <option value="quadratic">二次函数　ax² + bx + c</option>
+              <option value="cubic">三次多项式　ax³ + bx² + cx + d</option>
+              <option value="quartic">四次多项式　ax⁴ + bx³ + cx² + d</option>
+              <option value="sine">正弦函数　a·sin(bx + c) + d</option>
+              <option value="cosine">余弦函数　a·cos(bx + c) + d</option>
+              <option value="tangent">正切函数　a·tan(bx + c) + d</option>
+              <option value="exponential">指数函数　a·eᵇˣ + c</option>
+              <option value="logarithm">对数函数　a·ln(bx) + c</option>
+              <option value="sqrt">平方根函数　a·√(bx + c) + d</option>
+              <option value="absolute">绝对值函数　a·|x − b| + c</option>
+              <option value="reciprocal">反比例函数　a/(x − b) + c</option>
+              <option value="rational">有理函数　(ax + b)/(cx + d)</option>
+              <option value="custom">自定义表达式</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="expressionInput">函数表达式 f(x)</label>
+            <input class="expression-input" id="expressionInput" type="text" value="a*x+b" autocomplete="off" spellcheck="false" aria-describedby="expressionHelp expressionError">
+          </div>
+          <p class="expression-help" id="expressionHelp">支持 + − × ÷、幂 ^、括号、x/a/b/c/d、π/e，以及三角、反三角、双曲、sqrt、abs、ln、log、exp、min、max 等函数。</p>
+          <div class="expression-error" id="expressionError" role="alert" aria-live="polite"></div>
+          <div class="field">
+            <div class="field-head"><span>可调常数</span><span>a、b、c、d</span></div>
+            <div class="parameter-grid">
+              <div class="parameter"><label for="parameterA">a</label><input class="constant-input" id="parameterA" type="number" step="any" value="1"></div>
+              <div class="parameter"><label for="parameterB">b</label><input class="constant-input" id="parameterB" type="number" step="any" value="0"></div>
+              <div class="parameter"><label for="parameterC">c</label><input class="constant-input" id="parameterC" type="number" step="any" value="0"></div>
+              <div class="parameter"><label for="parameterD">d</label><input class="constant-input" id="parameterD" type="number" step="any" value="0"></div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-head"><span>坐标轴范围</span><span>可自行设置</span></div>
+            <div class="axis-grid">
+              <div class="parameter"><label for="xMinInput">x 最小值</label><input class="axis-input" id="xMinInput" type="number" step="any" value="-4"></div>
+              <div class="parameter"><label for="xMaxInput">x 最大值</label><input class="axis-input" id="xMaxInput" type="number" step="any" value="4"></div>
+              <div class="parameter"><label for="yMinInput">y 最小值</label><input class="axis-input" id="yMinInput" type="number" step="any" value="-4"></div>
+              <div class="parameter"><label for="yMaxInput">y 最大值</label><input class="axis-input" id="yMaxInput" type="number" step="any" value="4"></div>
+            </div>
+          </div>
+          <div class="expression-error" id="rangeError" role="alert" aria-live="polite"></div>
+          <div class="field">
+            <div class="field-head"><span>观察方式</span></div>
+            <div class="mode-switch" role="group" aria-label="选择观察方式">
+              <button class="mode-button active" data-mode="function" aria-pressed="true">函数</button>
+              <button class="mode-button" data-mode="derivative" aria-pressed="false">导数</button>
+              <button class="mode-button" data-mode="integral" aria-pressed="false">积分</button>
+            </div>
+          </div>
+          <div class="field" id="pointField">
+            <label for="pointSlider"><span>沿曲线移动</span><output id="pointOutput">x = 1.00</output></label>
+            <input id="pointSlider" type="range" min="-4" max="4" step="any" value="1" aria-label="沿曲线移动的 x 值">
+            <div class="range-ends"><span>-4</span><span>4</span></div>
+          </div>
+          <div class="field" id="endField" hidden>
+            <label for="endSlider"><span>积分终点 b</span><output id="endOutput">b = 2.00</output></label>
+            <input id="endSlider" type="range" min="-4" max="4" step="any" value="2" aria-label="定积分终点">
+            <div class="range-ends"><span>-4</span><span>4</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-caption" id="formulaCaption">当前函数</div>
+            <div class="formula" id="formulaText">f(x) = x² / 2</div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="insight-grid" aria-label="实时计算结果">
+        <div class="card insight">
+          <div class="insight-label" id="valueLabel">函数值 f(x)</div>
+          <div class="insight-value cyan" id="valueResult">f(1.00) = 0.50</div>
+        </div>
+        <div class="card insight">
+          <div class="insight-label">瞬时变化率 f′(x)</div>
+          <div class="insight-value orange" id="derivativeResult">f′(1.00) = 1.00</div>
+        </div>
+        <div class="card insight">
+          <div class="insight-label" id="integralLabel">定积分 ∫₀ˣ f(t)dt</div>
+          <div class="insight-value blue" id="integralResult">= 0.17</div>
+        </div>
+      </section>
+      <p class="hint" id="hint">导数描述曲线在某一点的变化快慢。切线越陡，函数变化越快。</p>
+    </main>
+    <footer>函数之间 · 交互式微积分可视化</footer>
+  </div>
+
+  <script>
+    (() => {
+      const templates = {
+        linear: { expression: "a*x+b", values: [1, 0, 0, 0] },
+        quadratic: { expression: "a*x^2+b*x+c", values: [1, 0, 0, 0] },
+        cubic: { expression: "a*x^3+b*x^2+c*x+d", values: [1, 0, 0, 0] },
+        quartic: { expression: "a*x^4+b*x^3+c*x^2+d", values: [1, 0, 0, 0] },
+        sine: { expression: "a*sin(b*x+c)+d", values: [1, 1, 0, 0] },
+        cosine: { expression: "a*cos(b*x+c)+d", values: [1, 1, 0, 0] },
+        tangent: { expression: "a*tan(b*x+c)+d", values: [1, 1, 0, 0] },
+        exponential: { expression: "a*exp(b*x)+c", values: [1, 1, 0, 0] },
+        logarithm: { expression: "a*ln(b*x)+c", values: [1, 1, 0, 0] },
+        sqrt: { expression: "a*sqrt(b*x+c)+d", values: [1, 1, 0, 0] },
+        absolute: { expression: "a*abs(x-b)+c", values: [1, 0, 0, 0] },
+        reciprocal: { expression: "a/(x-b)+c", values: [1, 0, 0, 0] },
+        rational: { expression: "(a*x+b)/(c*x+d)", values: [1, 0, 0, 1] },
+        custom: { expression: "a*sin(b*x)+c*x^2+d", values: [1, 1, 0, 0] }
+      };
+      const mathFunctions = {
+        sin: Math.sin, cos: Math.cos, tan: Math.tan,
+        asin: Math.asin, acos: Math.acos, atan: Math.atan,
+        sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+        sqrt: Math.sqrt, abs: Math.abs, ln: Math.log,
+        log: value => Math.log10(value), exp: Math.exp,
+        floor: Math.floor, ceil: Math.ceil, round: Math.round,
+        cbrt: Math.cbrt, sign: Math.sign, min: Math.min, max: Math.max
+      };
+      const functionNames = new Set(Object.keys(mathFunctions));
+      const multiArgumentFunctions = new Set(["min", "max"]);
+
+      const canvas = document.getElementById("plot");
+      const ctx = canvas.getContext("2d");
+      const select = document.getElementById("functionSelect");
+      const expressionInput = document.getElementById("expressionInput");
+      const expressionError = document.getElementById("expressionError");
+      const parameterInputs = ["a", "b", "c", "d"].map(name => document.getElementById(`parameter${name.toUpperCase()}`));
+      const axisInputs = {
+        xMin: document.getElementById("xMinInput"),
+        xMax: document.getElementById("xMaxInput"),
+        yMin: document.getElementById("yMinInput"),
+        yMax: document.getElementById("yMaxInput")
+      };
+      const rangeError = document.getElementById("rangeError");
+      const pointSlider = document.getElementById("pointSlider");
+      const endSlider = document.getElementById("endSlider");
+      const modeButtons = [...document.querySelectorAll(".mode-button")];
+      const legend = document.getElementById("legend");
+      const state = {
+        mode: "function",
+        x: 1,
+        b: 2,
+        fn: null,
+        expression: "",
+        parameters: [1, 0, 0, 0],
+        view: { xMin: -4, xMax: 4, yMin: -4, yMax: 4 }
+      };
+
+      const format = value => {
+        if (!Number.isFinite(value)) return "未定义";
+        const safe = Math.abs(value) < 0.0005 ? 0 : value;
+        return safe.toFixed(2);
+      };
+
+      function compileExpression(source) {
+        const normalized = source
+          .replace(/^(?:f\s*\(\s*x\s*\)|y)\s*=/i, "")
+          .replace(/[×·]/g, "*")
+          .replace(/÷/g, "/")
+          .replace(/π/g, "pi")
+          .replace(/\bX\b/g, "x");
+        const tokenPattern = /\s+|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z_]\w*|[()+\-*/%^,]/y;
+        const tokens = [];
+        let position = 0;
+        while (position < normalized.length) {
+          tokenPattern.lastIndex = position;
+          const match = tokenPattern.exec(normalized);
+          if (!match) throw new Error(`无法识别的位置：「${normalized[position]}」`);
+          position = tokenPattern.lastIndex;
+          if (!/^\s+$/.test(match[0])) tokens.push(match[0]);
+        }
+        if (!tokens.length) throw new Error("请输入一个函数表达式。");
+
+        const expanded = [];
+        for (let index = 0; index < tokens.length; index++) {
+          const token = tokens[index];
+          const previous = tokens[index - 1];
+          if ((previous && /^(?:\d|[a-zA-Z_])/.test(previous)) || previous === ")") {
+            const startsOperand = /^(?:\d|[a-zA-Z_])/.test(token) || token === "(";
+            const isFunctionCall = /^[a-zA-Z_]/.test(previous) && functionNames.has(previous.toLowerCase()) && token === "(";
+            if (startsOperand && !isFunctionCall) expanded.push("*");
+          }
+          expanded.push(token);
+        }
+
+        let cursor = 0;
+        const peek = () => expanded[cursor];
+        const take = () => expanded[cursor++];
+        const expect = token => {
+          if (take() !== token) throw new Error(`缺少「${token}」。`);
+        };
+        function parseExpression() {
+          let node = parseTerm();
+          while (peek() === "+" || peek() === "-") node = { type: take(), left: node, right: parseTerm() };
+          return node;
+        }
+        function parseTerm() {
+          let node = parseUnary();
+          while (peek() === "*" || peek() === "/" || peek() === "%") node = { type: take(), left: node, right: parseUnary() };
+          return node;
+        }
+        function parseUnary() {
+          if (peek() === "+" || peek() === "-") return { type: `unary${take()}`, value: parseUnary() };
+          return parsePower();
+        }
+        function parsePower() {
+          const node = parsePrimary();
+          return peek() === "^" ? { type: "^", left: node, right: (cursor++, parseUnary()) } : node;
+        }
+        function parsePrimary() {
+          const token = take();
+          if (token === undefined) throw new Error("表达式不完整。");
+          if (token === "(") {
+            const node = parseExpression();
+            expect(")");
+            return node;
+          }
+          if (/^(?:\d|[.])/.test(token)) return { type: "number", value: Number(token) };
+          if (/^[a-zA-Z_]/.test(token)) {
+            const name = token.toLowerCase();
+            if (functionNames.has(name)) {
+              expect("(");
+              const args = [parseExpression()];
+              while (peek() === ",") {
+                take();
+                args.push(parseExpression());
+              }
+              expect(")");
+              if (multiArgumentFunctions.has(name) ? args.length < 2 : args.length !== 1) {
+                throw new Error(`${name}() ${multiArgumentFunctions.has(name) ? "至少需要两个参数" : "只接受一个参数"}。`);
+              }
+              return { type: "call", name, args };
+            }
+            if (["x", "a", "b", "c", "d", "pi", "e"].includes(name)) return { type: "variable", name };
+            throw new Error(`不支持「${token}」。请使用 x、a、b、c、d 或帮助中列出的函数。`);
+          }
+          throw new Error(`「${token}」不能出现在这里。`);
+        }
+        const tree = parseExpression();
+        if (cursor < expanded.length) throw new Error(`多余的内容：「${expanded[cursor]}」。`);
+
+        return (x, parameters) => {
+          function evaluate(node) {
+            if (node.type === "number") return node.value;
+            if (node.type === "variable") {
+              if (node.name === "x") return x;
+              if (node.name === "pi") return Math.PI;
+              if (node.name === "e") return Math.E;
+              return parameters[["a", "b", "c", "d"].indexOf(node.name)];
+            }
+            if (node.type === "unary-") return -evaluate(node.value);
+            if (node.type === "unary+") return evaluate(node.value);
+            if (node.type === "call") return mathFunctions[node.name](...node.args.map(evaluate));
+            const left = evaluate(node.left);
+            const right = evaluate(node.right);
+            if (node.type === "+") return left + right;
+            if (node.type === "-") return left - right;
+            if (node.type === "*") return left * right;
+            if (node.type === "/") return left / right;
+            if (node.type === "%") return left % right;
+            return left ** right;
+          }
+          return evaluate(tree);
+        };
+      }
+
+      function evaluateAt(x) {
+        return state.fn(x, state.parameters);
+      }
+
+      function derivativeAt(x) {
+        const step = 0.00001 * Math.max(1, Math.abs(x));
+        const before = evaluateAt(x - step);
+        const after = evaluateAt(x + step);
+        return Number.isFinite(before) && Number.isFinite(after) ? (after - before) / (2 * step) : NaN;
+      }
+
+      function integralBetween(start, end) {
+        if (start === end) return 0;
+        const subdivisions = 400;
+        const step = (end - start) / subdivisions;
+        let sum = evaluateAt(start) + evaluateAt(end);
+        for (let index = 1; index < subdivisions; index++) {
+          const value = evaluateAt(start + step * index);
+          if (!Number.isFinite(value)) return NaN;
+          sum += (index % 2 === 0 ? 2 : 4) * value;
+        }
+        return sum * step / 3;
+      }
+
+      function readParameters() {
+        if (parameterInputs.some(input => input.value.trim() === "")) throw new Error("常数 a、b、c、d 不能为空。");
+        const parameters = parameterInputs.map(input => Number(input.value));
+        if (parameters.some(value => !Number.isFinite(value))) throw new Error("常数 a、b、c、d 必须是有效数字。");
+        return parameters;
+      }
+
+      function applyAxisRange() {
+        try {
+          if (Object.values(axisInputs).some(input => input.value.trim() === "")) {
+            throw new Error("坐标轴范围不能为空。");
+          }
+          const nextView = Object.fromEntries(
+            Object.entries(axisInputs).map(([key, input]) => [key, Number(input.value)])
+          );
+          if (Object.values(nextView).some(value => !Number.isFinite(value))) {
+            throw new Error("坐标轴范围必须是有效数字。");
+          }
+          if (nextView.xMin >= nextView.xMax || nextView.yMin >= nextView.yMax) {
+            throw new Error("x、y 轴的最小值都必须小于最大值。");
+          }
+          if (Object.values(nextView).some(value => Math.abs(value) > 1e9)) {
+            throw new Error("坐标轴范围请设置在 ±10 亿以内。");
+          }
+          state.view = nextView;
+          state.x = Math.min(nextView.xMax, Math.max(nextView.xMin, state.x));
+          state.b = Math.min(nextView.xMax, Math.max(nextView.xMin, state.b));
+          rangeError.textContent = "";
+          update();
+        } catch (error) {
+          rangeError.textContent = error instanceof Error ? error.message : "坐标轴范围无效。";
+        }
+      }
+
+      function update() {
+        const fn = (x) => evaluateAt(x);
+        const x = state.x;
+        const integral = state.mode === "integral" ? integralBetween(x, state.b) : integralBetween(0, x);
+
+        pointSlider.min = String(state.view.xMin);
+        pointSlider.max = String(state.view.xMax);
+        pointSlider.value = String(state.x);
+        endSlider.min = String(state.view.xMin);
+        endSlider.max = String(state.view.xMax);
+        endSlider.value = String(state.b);
+        document.querySelector("#pointField .range-ends span:first-child").textContent = format(state.view.xMin);
+        document.querySelector("#pointField .range-ends span:last-child").textContent = format(state.view.xMax);
+        document.querySelector("#endField .range-ends span:first-child").textContent = format(state.view.xMin);
+        document.querySelector("#endField .range-ends span:last-child").textContent = format(state.view.xMax);
+        document.getElementById("xRange").textContent = `x ∈ [${format(state.view.xMin)}, ${format(state.view.xMax)}]`;
+        document.getElementById("pointOutput").textContent = state.mode === "integral"
+          ? `a = ${format(x)}` : `x = ${format(x)}`;
+        document.getElementById("endOutput").textContent = `b = ${format(state.b)}`;
+        document.getElementById("valueResult").textContent = `f(${format(x)}) = ${format(evaluateAt(x))}`;
+        document.getElementById("derivativeResult").textContent = `f′(${format(x)}) ≈ ${format(derivativeAt(x))}`;
+        document.getElementById("integralResult").textContent = Number.isFinite(integral) ? `≈ ${format(integral)}` : "该区间内未定义";
+        document.getElementById("integralLabel").textContent = state.mode === "integral"
+          ? `定积分 ∫ₐᵇ f(t)dt　[a=${format(x)}, b=${format(state.b)}]`
+          : "定积分 ∫₀ˣ f(t)dt";
+        document.querySelector("#pointField label span").textContent = state.mode === "integral" ? "积分起点 a" : "沿曲线移动";
+        pointSlider.setAttribute("aria-label", state.mode === "integral" ? "定积分起点" : "沿曲线移动的 x 值");
+        document.getElementById("formulaText").textContent = state.mode === "derivative"
+          ? `f′(x) ≈ d/dx [${state.expression}]`
+          : state.mode === "integral" ? `∫ (${state.expression}) dx（数值积分）` : `f(x) = ${state.expression}`;
+        document.getElementById("formulaCaption").textContent = state.mode === "derivative"
+          ? "数值导函数" : state.mode === "integral" ? "数值原函数" : "当前函数";
+        document.getElementById("chartTitle").textContent = state.mode === "derivative"
+          ? "导数与切线" : state.mode === "integral" ? "定积分与面积" : "函数图像";
+        document.getElementById("hint").textContent = state.mode === "derivative"
+          ? "橙色切线的斜率是导数值 f′(x)。蓝绿色曲线为通过数值微分估算的导函数。"
+          : state.mode === "integral"
+            ? "阴影表示从 a 到 b 的带符号面积；数值积分遇到函数未定义的区间时会显示未定义。"
+            : "拖动滑块沿曲线移动。函数值、数值导数与从 0 到当前 x 的累积面积会同步更新。";
+        document.getElementById("pointField").hidden = false;
+        document.getElementById("endField").hidden = state.mode !== "integral";
+        document.getElementById("valueLabel").textContent = state.mode === "derivative" ? "原函数上的点 f(x)" : "函数值 f(x)";
+
+        if (state.mode === "derivative") {
+          legend.innerHTML = '<span class="legend-item"><i class="legend-dot"></i>导函数 f′(x)</span><span class="legend-item"><i class="legend-dot orange"></i>切线</span>';
+        } else if (state.mode === "integral") {
+          legend.innerHTML = '<span class="legend-item"><i class="legend-dot"></i>函数 f(x)</span><span class="legend-item"><i class="legend-dot blue"></i>积分面积</span>';
+        } else {
+          legend.innerHTML = '<span class="legend-item"><i class="legend-dot"></i>函数 f(x)</span><span class="legend-item"><i class="legend-dot orange"></i>当前点</span>';
+        }
+        draw(fn);
+      }
+
+      function draw(fn) {
+        const bounds = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.round(bounds.width * dpr));
+        canvas.height = Math.max(1, Math.round(bounds.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const width = bounds.width;
+        const height = bounds.height;
+        const { xMin, xMax, yMin, yMax } = state.view;
+        const pad = { left: 44, right: 15, top: 17, bottom: 29 };
+        const plotWidth = width - pad.left - pad.right;
+        const plotHeight = height - pad.top - pad.bottom;
+        const px = value => pad.left + (value - xMin) / (xMax - xMin) * plotWidth;
+        const py = value => pad.top + (yMax - value) / (yMax - yMin) * plotHeight;
+        const sampleCount = Math.max(160, Math.floor(plotWidth));
+        const xTick = tickSizeFor(xMax - xMin);
+        const yTick = tickSizeFor(yMax - yMin);
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.font = "11px Inter, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = 1;
+        for (let value = Math.ceil(yMin / yTick) * yTick; value <= yMax + yTick * 0.001; value += yTick) {
+          const y = py(value);
+          ctx.beginPath();
+          ctx.strokeStyle = Math.abs(value) < yTick * 1e-8 ? "#58647b" : "rgba(142,154,179,.12)";
+          ctx.moveTo(pad.left, y);
+          ctx.lineTo(width - pad.right, y);
+          ctx.stroke();
+          if (Math.abs(value) >= yTick * 1e-8) {
+            ctx.fillStyle = "#75819a";
+            ctx.textAlign = "right";
+            ctx.fillText(Number(value.toPrecision(3)).toString(), pad.left - 9, y);
+          }
+        }
+        for (let value = Math.ceil(xMin / xTick) * xTick; value <= xMax + xTick * 0.001; value += xTick) {
+          const x = px(value);
+          ctx.beginPath();
+          ctx.strokeStyle = Math.abs(value) < xTick * 1e-8 ? "#58647b" : "rgba(142,154,179,.12)";
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, height - pad.bottom);
+          ctx.stroke();
+          if (Math.abs(value) >= xTick * 1e-8) {
+            ctx.fillStyle = "#75819a";
+            ctx.textAlign = "center";
+            ctx.fillText(Number(value.toPrecision(3)).toString(), x, height - pad.bottom + 15);
+          }
+        }
+        ctx.fillStyle = "#aab5ca";
+        ctx.textAlign = "right";
+        ctx.fillText("y", pad.left - 9, py(Math.min(yMax, Math.max(yMin, 0))) + (yMin <= 0 && yMax >= 0 ? -9 : 0));
+        ctx.textAlign = "left";
+        ctx.fillText("x", width - pad.right - 2, pad.top + 10);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(pad.left, pad.top, plotWidth, plotHeight);
+        ctx.clip();
+        if (state.mode === "integral") {
+          drawIntegralArea();
+        }
+
+        if (state.mode === "derivative") {
+          drawCurve(x => fn(x), "#42516c", 2);
+          drawCurve(derivativeAt, "#60e5d0", 2.5);
+          const tangentStart = Math.max(xMin, state.x - 1.25);
+          const tangentEnd = Math.min(xMax, state.x + 1.25);
+          const tangentValue = fn(state.x);
+          const tangentSlope = derivativeAt(state.x);
+          ctx.beginPath();
+          ctx.moveTo(px(tangentStart), py(tangentValue + tangentSlope * (tangentStart - state.x)));
+          ctx.lineTo(px(tangentEnd), py(tangentValue + tangentSlope * (tangentEnd - state.x)));
+          ctx.strokeStyle = "#ffad73";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          drawCurve(fn, "#60e5d0", 2.7);
+        }
+
+        ctx.beginPath();
+        const pointValue = fn(state.x);
+        if (Number.isFinite(pointValue)) ctx.arc(px(state.x), py(pointValue), 5, 0, Math.PI * 2);
+        ctx.fillStyle = state.mode === "derivative" ? "#ffad73" : "#f3f6ff";
+        ctx.fill();
+        ctx.strokeStyle = state.mode === "derivative" ? "#ffad73" : "#60e5d0";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (state.mode === "integral") {
+          for (const edge of [state.x, state.b]) {
+            ctx.beginPath();
+            ctx.setLineDash([4, 5]);
+            ctx.moveTo(px(edge), py(0));
+            const edgeValue = fn(edge);
+            if (Number.isFinite(edgeValue)) ctx.lineTo(px(edge), py(edgeValue));
+            else ctx.lineTo(px(edge), py(Math.min(yMax, Math.max(yMin, 0))));
+            ctx.strokeStyle = "rgba(141,167,255,.55)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        function drawIntegralArea() {
+          const low = Math.min(state.x, state.b);
+          const high = Math.max(state.x, state.b);
+          const steps = Math.max(80, Math.ceil((high - low) / (xMax - xMin) * sampleCount));
+          let segment = [];
+          const fillSegment = () => {
+            if (segment.length < 2) {
+              segment = [];
+              return;
+            }
+            ctx.beginPath();
+            const baseline = py(Math.min(yMax, Math.max(yMin, 0)));
+            ctx.moveTo(px(segment[0].x), baseline);
+            segment.forEach(point => ctx.lineTo(px(point.x), py(point.y)));
+            ctx.lineTo(px(segment[segment.length - 1].x), baseline);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(141,167,255,.22)";
+            ctx.fill();
+            segment = [];
+          };
+          for (let index = 0; index <= steps; index++) {
+            const x = low + (high - low) * index / steps;
+            const y = fn(x);
+            if (!Number.isFinite(y) || Math.abs(y) > 1e9) {
+              fillSegment();
+              continue;
+            }
+            if (segment.length && Math.abs(y - segment[segment.length - 1].y) > (yMax - yMin) * 0.8) fillSegment();
+            segment.push({ x, y });
+          }
+          fillSegment();
+        }
+
+        function drawCurve(getY, color, lineWidth) {
+          ctx.beginPath();
+          let previousPoint = null;
+          for (let i = 0; i <= sampleCount; i++) {
+            const x = xMin + (xMax - xMin) * i / sampleCount;
+            const y = getY(x);
+            if (!Number.isFinite(y) || Math.abs(y) > 1e9) {
+              previousPoint = null;
+              continue;
+            }
+            if (!previousPoint || Math.abs(y - previousPoint.y) > (yMax - yMin) * 0.8) ctx.moveTo(px(x), py(y));
+            else ctx.lineTo(px(x), py(y));
+            previousPoint = { x, y };
+          }
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lineWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function tickSizeFor(span) {
+        const rough = span / 7;
+        const power = 10 ** Math.floor(Math.log10(rough));
+        return [1, 2, 5, 10].find(step => step * power >= rough) * power;
+      }
+
+      function applyTemplate() {
+        const template = templates[select.value];
+        expressionInput.value = template.expression;
+        template.values.forEach((value, index) => { parameterInputs[index].value = String(value); });
+        updateFromInput();
+      }
+
+      function updateFromInput() {
+        try {
+          const expression = expressionInput.value.trim();
+          const compiled = compileExpression(expression);
+          const parameters = readParameters();
+          state.fn = compiled;
+          state.expression = expression.replace(/^(?:f\s*\(\s*x\s*\)|y)\s*=/i, "").trim();
+          state.parameters = parameters;
+          expressionError.textContent = "";
+          update();
+        } catch (error) {
+          expressionError.textContent = error instanceof Error ? error.message : "表达式或常数无效。";
+        }
+      }
+
+      select.addEventListener("change", applyTemplate);
+      expressionInput.addEventListener("input", () => {
+        select.value = "custom";
+        updateFromInput();
+      });
+      parameterInputs.forEach(input => input.addEventListener("input", updateFromInput));
+      select.addEventListener("change", () => {
+        expressionInput.focus();
+      });
+      Object.values(axisInputs).forEach(input => input.addEventListener("input", applyAxisRange));
+      pointSlider.addEventListener("input", () => {
+        state.x = Number(pointSlider.value);
+        update();
+      });
+      endSlider.addEventListener("input", () => {
+        state.b = Number(endSlider.value);
+        update();
+      });
+      modeButtons.forEach(button => button.addEventListener("click", () => {
+        state.mode = button.dataset.mode;
+        modeButtons.forEach(item => {
+          const active = item === button;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-pressed", String(active));
+        });
+        update();
+      }));
+      window.addEventListener("resize", update);
+      applyTemplate();
+    })();
+  </script>
+</body>
+</html>
